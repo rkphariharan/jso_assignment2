@@ -9,6 +9,7 @@ This repo implements the **Code Portfolio Evaluation Agent** as a live Next.js a
   - **Run Portfolio Agent** action
   - Real-time scorecard + blockers + top actions
   - Task completion and consultant escalation actions
+  - Chat-style **Agent Panel** for conversational guidance
 - Live backend orchestration:
   - GitHub repo ingestion from submitted URLs
   - Deterministic scoring engine (relevance, complexity, code quality, engineering maturity, documentation)
@@ -17,6 +18,7 @@ This repo implements the **Code Portfolio Evaluation Agent** as a live Next.js a
 ## API routes
 
 - `POST /api/agent/evaluate-portfolio`
+- `POST /api/agent/chat`
 - `GET /api/agent/portfolio-recommendations`
 - `POST /api/agent/complete-task`
 - `POST /api/agent/escalate-consultant`

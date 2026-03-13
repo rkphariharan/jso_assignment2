@@ -30,6 +30,11 @@ type EvalResponse = {
   }>;
 };
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 const initialRepos = [
   "https://github.com/vercel/next.js",
   "https://github.com/facebook/react"
@@ -43,6 +48,15 @@ export default function UserDashboardPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<EvalResponse | null>(null);
   const [taskMessage, setTaskMessage] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatMode, setChatMode] = useState("not-started");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content: "Hi, I’m your Code Evaluation Agent. Run analysis, then ask me what to improve first."
+    }
+  ]);
 
   const repoUrls = useMemo(
     () => repoInput.split(/\r?\n|,/).map((value) => value.trim()).filter(Boolean),
@@ -95,6 +109,50 @@ export default function UserDashboardPage() {
     });
     const payload = await response.json();
     setTaskMessage(`Escalated: ${payload.prebrief.coachingFocus[0]}`);
+  }
+
+  async function sendChatMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = chatInput.trim();
+    if (!message) {
+      return;
+    }
+
+    const nextMessages: ChatMessage[] = [...chatMessages, { role: "user", content: message }];
+    setChatMessages(nextMessages);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      const response = await fetch("/api/agent/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userMessage: message,
+          messages: nextMessages,
+          targetRole,
+          portfolioScore: result?.portfolioScore,
+          blockers: result?.blockers ?? [],
+          actions: result?.nextBestActions ?? []
+        })
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Agent chat failed");
+      }
+
+      setChatMode(payload.mode ?? "unknown");
+      setChatMessages((current) => [...current, { role: "assistant", content: payload.reply }]);
+    } catch (caughtError) {
+      const messageText = caughtError instanceof Error ? caughtError.message : "Chat failed";
+      setChatMessages((current) => [
+        ...current,
+        { role: "assistant", content: `I hit an issue: ${messageText}. Please try again.` }
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
   }
 
   return (
@@ -204,6 +262,31 @@ export default function UserDashboardPage() {
                 </article>
               ))}
             </div>
+          </section>
+
+          <section className="panel">
+            <h3>Agent Chat Panel</h3>
+            <p className="muted">Mode: {chatMode}</p>
+            <div className="chat-window">
+              {chatMessages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
+                  <strong>{message.role === "assistant" ? "Agent" : "You"}: </strong>
+                  {message.content}
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={sendChatMessage} className="chat-form">
+              <input
+                className="field"
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="Ask: which repo should I prioritize this week?"
+              />
+              <button className="btn" type="submit" disabled={chatLoading}>
+                {chatLoading ? "Thinking..." : "Send"}
+              </button>
+            </form>
           </section>
         </>
       ) : null}

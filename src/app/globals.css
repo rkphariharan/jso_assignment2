@@ -122,3 +122,40 @@ a {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.chat-window {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  background: #f9fafb;
+}
+
+.chat-bubble {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.chat-bubble.user {
+  background: #e0e7ff;
+  justify-self: end;
+  max-width: 85%;
+}
+
+.chat-bubble.assistant {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  justify-self: start;
+  max-width: 90%;
+}
+
+.chat-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
