@@ -35,10 +35,7 @@ type ChatMessage = {
   content: string;
 };
 
-const initialRepos = [
-  "https://github.com/vercel/next.js",
-  "https://github.com/facebook/react"
-].join("\n");
+const initialRepos = ["https://github.com/vercel/next.js", "https://github.com/facebook/react"].join("\n");
 
 export default function UserDashboardPage() {
   const [userId, setUserId] = useState("demo-user");
@@ -52,10 +49,7 @@ export default function UserDashboardPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatMode, setChatMode] = useState("not-started");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: "Hi, I’m your Code Evaluation Agent. Run analysis, then ask me what to improve first."
-    }
+    { role: "assistant", content: "I’m your CPEA agent. Run evaluation and I’ll guide your top improvements." }
   ]);
 
   const repoUrls = useMemo(
@@ -74,12 +68,18 @@ export default function UserDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, targetRole, repoUrls })
       });
-
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error ?? "Agent evaluation failed");
       }
       setResult(payload);
+      setChatMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: `Analysis complete. Flagship repo: ${payload.flagshipProject}. Ask me for a 7-day execution plan.`
+        }
+      ]);
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : "Something went wrong";
       setError(message);
@@ -145,10 +145,10 @@ export default function UserDashboardPage() {
       setChatMode(payload.mode ?? "unknown");
       setChatMessages((current) => [...current, { role: "assistant", content: payload.reply }]);
     } catch (caughtError) {
-      const messageText = caughtError instanceof Error ? caughtError.message : "Chat failed";
+      const errorMessage = caughtError instanceof Error ? caughtError.message : "Chat failed";
       setChatMessages((current) => [
         ...current,
-        { role: "assistant", content: `I hit an issue: ${messageText}. Please try again.` }
+        { role: "assistant", content: `I hit an issue: ${errorMessage}. Please retry.` }
       ]);
     } finally {
       setChatLoading(false);
@@ -156,140 +156,159 @@ export default function UserDashboardPage() {
   }
 
   return (
-    <main className="container grid" style={{ gap: 16 }}>
-      <section className="panel">
-        <span className="pill">Live CPEA Agent</span>
-        <h1>User Dashboard</h1>
-        <p className="muted">Run real-time portfolio analysis from GitHub links.</p>
-      </section>
+    <main className="container cpea-layout">
+      <section className="cpea-main">
+        <article className="panel hero-card">
+          <span className="pill">User Dashboard</span>
+          <h1>Code Portfolio Evaluation Agent</h1>
+          <p className="muted">
+            Evaluate GitHub repositories for code quality, project complexity, and recruiter readiness.
+          </p>
+        </article>
 
-      <section className="panel">
-        <h3>Run Evaluation</h3>
-        <form className="grid" style={{ gap: 12 }} onSubmit={runAgent}>
-          <input
-            value={userId}
-            onChange={(event) => setUserId(event.target.value)}
-            placeholder="User ID"
-            className="field"
-          />
-          <input
-            value={targetRole}
-            onChange={(event) => setTargetRole(event.target.value)}
-            placeholder="Target role"
-            className="field"
-          />
-          <textarea
-            value={repoInput}
-            onChange={(event) => setRepoInput(event.target.value)}
-            rows={5}
-            placeholder="One GitHub URL per line"
-            className="field"
-          />
-          <button disabled={loading} className="btn" type="submit">
-            {loading ? "Running Agent..." : "Run Portfolio Agent"}
-          </button>
-        </form>
-        {error ? <p style={{ color: "#b91c1c" }}>{error}</p> : null}
-      </section>
-
-      {result ? (
-        <>
-          <section className="panel grid grid-2">
-            <div>
-              <p className="muted">Portfolio Score</p>
-              <div className="score">{result.portfolioScore}/100</div>
-              <p className="muted">Source: {result.source}</p>
-              <p className="muted">Mode: {result.explanationMode}</p>
+        <article className="panel">
+          <h3>Portfolio Input</h3>
+          <form className="grid" style={{ gap: 10 }} onSubmit={runAgent}>
+            <div className="input-row">
+              <input
+                value={userId}
+                onChange={(event) => setUserId(event.target.value)}
+                placeholder="User ID"
+                className="field"
+              />
+              <input
+                value={targetRole}
+                onChange={(event) => setTargetRole(event.target.value)}
+                placeholder="Target role"
+                className="field"
+              />
             </div>
-            <div>
-              <h3>Flagship Project</h3>
-              <p>{result.flagshipProject}</p>
-              <p className="muted">Expected lift: {result.expectedLift}</p>
+            <textarea
+              value={repoInput}
+              onChange={(event) => setRepoInput(event.target.value)}
+              rows={5}
+              placeholder="Paste GitHub URLs (one per line)"
+              className="field"
+            />
+            <button disabled={loading} className="btn" type="submit">
+              {loading ? "Evaluating..." : "Run Agent Evaluation"}
+            </button>
+            {error ? <p className="error-text">{error}</p> : null}
+          </form>
+        </article>
+
+        {result ? (
+          <>
+            <article className="metrics-grid">
+              <div className="metric-card">
+                <p className="muted">Portfolio Score</p>
+                <div className="score">{result.portfolioScore}</div>
+              </div>
+              <div className="metric-card">
+                <p className="muted">Flagship Repo</p>
+                <h3>{result.flagshipProject}</h3>
+                <p className="muted">{result.expectedLift}</p>
+              </div>
+              <div className="metric-card">
+                <p className="muted">Agent Mode</p>
+                <h3>{result.explanationMode}</h3>
+                <p className="muted">Source: {result.source}</p>
+              </div>
+            </article>
+
+            <article className="panel">
+              <h3>Agent Insight</h3>
               <p>{result.agentSummary}</p>
-            </div>
-          </section>
+            </article>
 
-          <section className="panel grid grid-2">
-            <div>
-              <h3>Sub-scores</h3>
+            <article className="panel grid grid-2">
+              <div>
+                <h3>Sub-scores</h3>
+                <ul className="list">
+                  <li>Relevance: {result.subScores.relevance}</li>
+                  <li>Complexity: {result.subScores.complexity}</li>
+                  <li>Code Quality: {result.subScores.codeQuality}</li>
+                  <li>Engineering Maturity: {result.subScores.engineeringMaturity}</li>
+                  <li>Documentation: {result.subScores.documentation}</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Top Blockers</h3>
+                <ul className="list">
+                  {result.blockers.map((blocker) => (
+                    <li key={blocker}>{blocker}</li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+
+            <article className="panel">
+              <h3>Next Best Actions</h3>
               <ul className="list">
-                <li>Relevance: {result.subScores.relevance}</li>
-                <li>Complexity: {result.subScores.complexity}</li>
-                <li>Code Quality: {result.subScores.codeQuality}</li>
-                <li>Engineering Maturity: {result.subScores.engineeringMaturity}</li>
-                <li>Documentation: {result.subScores.documentation}</li>
-              </ul>
-            </div>
-            <div>
-              <h3>Top Blockers</h3>
-              <ul className="list">
-                {result.blockers.map((blocker) => (
-                  <li key={blocker}>{blocker}</li>
+                {result.nextBestActions.map((action) => (
+                  <li key={action}>{action}</li>
                 ))}
               </ul>
-            </div>
-          </section>
+              <div className="action-row">
+                <button className="btn" type="button" onClick={completeFirstTask}>
+                  Mark Priority 1 Complete
+                </button>
+                <button className="btn btn-secondary" type="button" onClick={escalateConsultant}>
+                  Escalate to Consultant
+                </button>
+              </div>
+              {taskMessage ? <p className="muted">{taskMessage}</p> : null}
+            </article>
 
-          <section className="panel">
-            <h3>Next Best Actions</h3>
-            <ul className="list">
-              {result.nextBestActions.map((action) => (
-                <li key={action}>{action}</li>
-              ))}
-            </ul>
-            <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-              <button className="btn" type="button" onClick={completeFirstTask}>Mark Priority 1 Complete</button>
-              <button className="btn" type="button" onClick={escalateConsultant}>Escalate to Consultant</button>
-            </div>
-            {taskMessage ? <p className="muted">{taskMessage}</p> : null}
-          </section>
+            <article className="panel">
+              <h3>Repository Signals</h3>
+              <div className="repo-grid">
+                {result.repos.map((repo) => (
+                  <div className="repo-card" key={repo.name}>
+                    <h4>{repo.name}</h4>
+                    <p className="muted">{repo.description}</p>
+                    <div className="repo-tags">
+                      <span>⭐ {repo.stars}</span>
+                      <span>Updated {repo.updatedDaysAgo}d</span>
+                      <span>README {repo.hasReadme ? "Yes" : "No"}</span>
+                      <span>Tests {repo.hasTests ? "Yes" : "No"}</span>
+                      <span>CI {repo.hasCi ? "Yes" : "No"}</span>
+                      <span>Demo {repo.hasDemo ? "Yes" : "No"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </>
+        ) : null}
+      </section>
 
-          <section className="panel">
-            <h3>Live Repo Signals ({repoUrls.length} links submitted)</h3>
-            <div className="grid grid-2">
-              {result.repos.map((repo) => (
-                <article className="panel" key={repo.name}>
-                  <h4>{repo.name}</h4>
-                  <p className="muted">{repo.description}</p>
-                  <ul className="list">
-                    <li>Stars: {repo.stars}</li>
-                    <li>Updated: {repo.updatedDaysAgo} days ago</li>
-                    <li>README: {repo.hasReadme ? "Yes" : "No"}</li>
-                    <li>Tests: {repo.hasTests ? "Yes" : "No"}</li>
-                    <li>CI: {repo.hasCi ? "Yes" : "No"}</li>
-                    <li>Demo: {repo.hasDemo ? "Yes" : "No"}</li>
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </section>
+      <aside className="cpea-chat panel">
+        <h3>Agent Chat</h3>
+        <p className="muted">Ask for weekly plans, repo prioritization, and interview talking points.</p>
+        <p className="muted">Chat mode: {chatMode}</p>
 
-          <section className="panel">
-            <h3>Agent Chat Panel</h3>
-            <p className="muted">Mode: {chatMode}</p>
-            <div className="chat-window">
-              {chatMessages.map((message, index) => (
-                <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
-                  <strong>{message.role === "assistant" ? "Agent" : "You"}: </strong>
-                  {message.content}
-                </div>
-              ))}
+        <div className="chat-window">
+          {chatMessages.map((message, index) => (
+            <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
+              <strong>{message.role === "assistant" ? "Agent" : "You"}: </strong>
+              {message.content}
             </div>
+          ))}
+        </div>
 
-            <form onSubmit={sendChatMessage} className="chat-form">
-              <input
-                className="field"
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                placeholder="Ask: which repo should I prioritize this week?"
-              />
-              <button className="btn" type="submit" disabled={chatLoading}>
-                {chatLoading ? "Thinking..." : "Send"}
-              </button>
-            </form>
-          </section>
-        </>
-      ) : null}
+        <form onSubmit={sendChatMessage} className="chat-form">
+          <input
+            className="field"
+            value={chatInput}
+            onChange={(event) => setChatInput(event.target.value)}
+            placeholder="Ask your agent..."
+          />
+          <button className="btn" type="submit" disabled={chatLoading}>
+            {chatLoading ? "Thinking..." : "Send"}
+          </button>
+        </form>
+      </aside>
     </main>
   );
 }
